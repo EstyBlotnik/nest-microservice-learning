@@ -1,9 +1,3 @@
-מעולה 👍
-הכנתי לך **README מלא באנגלית** לפרויקט שלך. אפשר להעתיק אותו כקובץ `README.md` ל־repo בגיטהאב ולשנות לפי הצורך.
-
----
-
-```markdown
 # NestJS Microservice – Registration Updates
 
 A learning-oriented **microservice** built with [NestJS](https://nestjs.com/).  
@@ -112,9 +106,7 @@ This project was built as a **learning exercise** to practice:
 
 This project is released under the [MIT License](LICENSE).
 
-```
-
----
 
 רוצה שאוסיף לך גם **דוגמת בקשות ב־curl / Postman** בתוך ה־README (כדי שמי שיראה בגיטהאב יוכל לנסות מיד)?
 ```
+

@@ -1,0 +1,44 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id          Int        @id @default(autoincrement())
+  name        String     @db.VarChar(255) // נבדוק אלפאנומרי בקוד (Nest.js), Prisma לא מבצע זאת אוטומטית
+  create_date DateTime   @db.Timestamptz(6)
+  location    Location?
+  alerts      Alert[]
+  status      Status
+  description String?
+}
+
+model Location {
+  id        Int     @id @default(autoincrement())
+  latitude  Float
+  longitude Float
+  event     Event   @relation(fields: [eventId], references: [id])
+  eventId   Int     @unique
+}
+
+model Alert {
+  id      Int   @id @default(autoincrement())
+  number  Int
+  event   Event @relation(fields: [eventId], references: [id])
+  eventId Int
+}
+
+enum Status {
+  OPEN       // 1 - פתוח
+  ACTIVE     // 2 - פעיל
+  TESTING    // 3 - ניסוי
+  CHECKING   // 4 - בבדיקה
+  CLOSED     // 5 - סגור
+  CANCELED   // 6 - מבוטל
+}

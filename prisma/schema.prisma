@@ -11,27 +11,23 @@ datasource db {
 
 model Event {
   id          Int        @id @default(autoincrement())
-  name        String     @db.VarChar(255) // נבדוק אלפאנומרי בקוד (Nest.js), Prisma לא מבצע זאת אוטומטית
+  name        String     @db.VarChar(255)
   create_date DateTime   @db.Timestamptz(6)
-  location    Location?
-  alerts      Alert[]
+  locationId  Int
+  location    Location   @relation(fields: [locationId], references: [id])
+
+  alerts      Int[]
   status      Status
   description String?
 }
 
 model Location {
-  id        Int     @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   latitude  Float
   longitude Float
-  event     Event   @relation(fields: [eventId], references: [id])
-  eventId   Int     @unique
-}
+  events    Event[]
 
-model Alert {
-  id      Int   @id @default(autoincrement())
-  number  Int
-  event   Event @relation(fields: [eventId], references: [id])
-  eventId Int
+  @@unique([latitude, longitude])
 }
 
 enum Status {

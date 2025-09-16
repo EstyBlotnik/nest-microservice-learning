@@ -6,7 +6,7 @@ import { ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
 import { EventService } from './event.service';
 
 @ApiTags('event')
-@Controller('event')
+@Controller()
 export class EventController {
     constructor(private readonly eventService: EventService) { }
     @Post('update')
@@ -35,12 +35,12 @@ export class EventController {
         },
     })
     @UsePipes(new ZodValidationPipe(EventSchema))
-    updateEvent(@Body() body: EventDto) {
-        const updated = this.eventService.updateEvent(body);
+    async updateEvent(@Body() body: EventDto) {
+        const updated = await this.eventService.createOrUpdateEvent(body);
         return { message: 'Event updated successfully', event: updated };
     }
 
-    @Get()
+    @Get('event')
     @ApiResponse({ status: 200, description: 'Returned all events.' })
     @ApiResponse({ status: 500, description: 'Unexpected server error.' })
     getAll() {

@@ -4,6 +4,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, Status } from '@prisma/client';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { formatToIsraelTimezone } from 'src/common/utils/date.util';
+
 @Injectable()
 export class EventService {
   constructor(
@@ -100,13 +102,15 @@ export class EventService {
     try {
       await Promise.all(
         savedEvent.alerts.map(async (alert) => {
-          // יוצרים אובייקט בלי alerts
           const { alerts, ...eventWithoutAlerts } = savedEvent;
 
           const response = await firstValueFrom(
-            this.http.post('https://httpbin.org/post', {
+            this.http.post('https://postman-echo.com/post', {
               ...eventWithoutAlerts,
-              alert, // 👈 שולחים שדה alert יחיד
+              alert, // שדה alert יחיד
+              create_date: formatToIsraelTimezone(savedEvent.createdAt),
+              createdAt: formatToIsraelTimezone(savedEvent.createdAt),
+              updatedAt: formatToIsraelTimezone(savedEvent.updatedAt),
               timezone: 'Asia/Jerusalem',
             }),
           );

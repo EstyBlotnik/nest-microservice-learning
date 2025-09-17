@@ -13,6 +13,11 @@ export class EventService {
     private http: HttpService,
   ) {}
 
+  /**
+   * Maps a numeric status (1-6) from the DTO
+   * to the corresponding Prisma Status enum.
+   * Throws BadRequestException if value is invalid.
+   */
   private mapStatus(num: number): Status {
     switch (num) {
       case 1:
@@ -32,13 +37,50 @@ export class EventService {
     }
   }
 
+  /**
+   * Sends the saved event data to an external API.
+   * Each alert is sent as a separate request, replacing the `alerts` array
+   * with a single `alert` field. Dates are formatted to Asia/Jerusalem timezone.
+   */
+  private async sendEventToExternalAPI(savedEvent: any) {
+    await Promise.all(
+      savedEvent.alerts.map(async (alert) => {
+        // Remove the alerts array from the object
+        const { alerts, ...eventWithoutAlerts } = savedEvent;
+
+        // Build payload with single alert and formatted dates
+        const payload = {
+          ...eventWithoutAlerts,
+          alert,
+          create_date: formatToIsraelTimezone(savedEvent.create_date),
+          createdAt: formatToIsraelTimezone(savedEvent.createdAt),
+          updatedAt: formatToIsraelTimezone(savedEvent.updatedAt),
+          timezone: 'Asia/Jerusalem',
+        };
+
+        // Send to external API (URL is read from environment variable)
+        const response = await firstValueFrom(
+          this.http.post(process.env.EXTERNAL_API_URL!, payload),
+        );
+
+        console.log('External API response:', response.data);
+      }),
+    );
+  }
+
+  /**
+   * Creates or updates an event in the database.
+   * - Validates input (status, location boundaries, future date).
+   * - Reuses existing location if available.
+   * - Updates event if ID exists, otherwise creates a new one.
+   * - After saving, sends event data to external API.
+   */
   async createOrUpdateEvent(event: EventDto) {
-    // 1. בדיקות לוגיות נוספות
+    // --- Validation ---
     if (event.status < 1 || event.status > 6) {
       throw new BadRequestException('Invalid status value');
     }
 
-    // מיקום – נבדוק אם בקירוב נמצא בגבולות ישראל
     const { latitude, longitude } = event.location;
     if (
       latitude < 29.0 ||
@@ -51,13 +93,12 @@ export class EventService {
       );
     }
 
-    // תאריך – לא יכול להיות בעבר
     const eventDate = new Date(event.create_date);
     if (eventDate < new Date()) {
       throw new BadRequestException('Event date must be in the future');
     }
 
-    // בדיקה אם יש לוקיישן כזה כבר
+    // --- Location handling ---
     const location = await this.prisma.location.findFirst({
       where: {
         latitude: event.location.latitude,
@@ -78,6 +119,7 @@ export class EventService {
       location: locationData,
     };
 
+    // --- Update or Create ---
     let savedEvent;
     if (event.id) {
       const existing = await this.prisma.event.findUnique({
@@ -99,28 +141,13 @@ export class EventService {
       });
     }
 
+    // --- External API call ---
     try {
-      await Promise.all(
-        savedEvent.alerts.map(async (alert) => {
-          const { alerts, ...eventWithoutAlerts } = savedEvent;
-
-          const response = await firstValueFrom(
-            this.http.post('https://postman-echo.com/post', {
-              ...eventWithoutAlerts,
-              alert, // שדה alert יחיד
-              create_date: formatToIsraelTimezone(savedEvent.createdAt),
-              createdAt: formatToIsraelTimezone(savedEvent.createdAt),
-              updatedAt: formatToIsraelTimezone(savedEvent.updatedAt),
-              timezone: 'Asia/Jerusalem',
-            }),
-          );
-
-          console.log('External API response:', response.data);
-        }),
-      );
+      await this.sendEventToExternalAPI(savedEvent);
     } catch (err) {
       console.error('Error sending to external API:', err.message);
     }
+
     return savedEvent;
   }
 

@@ -2,10 +2,14 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { type EventDto } from './event.schema';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, Status } from '@prisma/client';
-
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 @Injectable()
 export class EventService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private http: HttpService,
+  ) {}
 
   private mapStatus(num: number): Status {
     switch (num) {
@@ -60,8 +64,8 @@ export class EventService {
     });
 
     const locationData = location
-    ? { connect: { id: location.id } }
-    : { create: { ...event.location } };  
+      ? { connect: { id: location.id } }
+      : { create: { ...event.location } };
 
     const eventData: Prisma.EventCreateInput = {
       name: event.name,
@@ -72,16 +76,13 @@ export class EventService {
       location: locationData,
     };
 
+    let savedEvent;
     if (event.id) {
-      console.log("if (event.id) {")
       const existing = await this.prisma.event.findUnique({
         where: { id: event.id },
       });
-
       if (existing) {
-        console.log("if (existing) {")
-        // עדכון
-        return await this.prisma.event.update({
+        savedEvent = await this.prisma.event.update({
           where: { id: event.id },
           data: eventData,
           include: { location: true },
@@ -89,11 +90,34 @@ export class EventService {
       }
     }
 
-    // יצירה חדשה
-    return await this.prisma.event.create({
-      data: eventData,
-      include: { location: true },
-    });
+    if (!savedEvent) {
+      savedEvent = await this.prisma.event.create({
+        data: eventData,
+        include: { location: true },
+      });
+    }
+
+    try {
+      await Promise.all(
+        savedEvent.alerts.map(async (alert) => {
+          // יוצרים אובייקט בלי alerts
+          const { alerts, ...eventWithoutAlerts } = savedEvent;
+
+          const response = await firstValueFrom(
+            this.http.post('https://httpbin.org/post', {
+              ...eventWithoutAlerts,
+              alert, // 👈 שולחים שדה alert יחיד
+              timezone: 'Asia/Jerusalem',
+            }),
+          );
+
+          console.log('External API response:', response.data);
+        }),
+      );
+    } catch (err) {
+      console.error('Error sending to external API:', err.message);
+    }
+    return savedEvent;
   }
 
   async getAllEvents() {

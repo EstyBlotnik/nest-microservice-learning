@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException  } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -7,10 +7,10 @@ export class StatusService {
 
   async checkDatabase() {
     try {
-      await this.prisma.$queryRaw`SELECT 1`; // בדיקה פשוטה שה־DB זמין
-      return true;
+      await this.prisma.$queryRaw`SELECT 1`;
+      return { status: 'ok' };
     } catch {
-      return false;
+      throw new BadRequestException('Database not reachable');
     }
   }
 }

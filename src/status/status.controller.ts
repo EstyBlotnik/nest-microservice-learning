@@ -12,19 +12,6 @@ export class StatusController {
   @ApiResponse({ status: 200, description: 'The service is running OK.' })
   @ApiResponse({ status: 500, description: 'Unexpected server error.' })
   async getStatus() {
-    const dbOk = await this.statusService.checkDatabase();
-
-    if (!dbOk) {
-      throw new HttpException(
-        { status: 'error', reason: 'Database connection failed' },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
-    return {
-      status: 'ok',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-    };
+    return await this.statusService.checkDatabase();
   }
 }
